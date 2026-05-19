@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QueensLab — Customizable N-Queens Solver</title>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ─── Design Tokens ─── */
+:root {
+  --font-display: 'Satoshi', 'Inter', sans-serif;
+  --font-body: 'General Sans', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --text-xs:   clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+  --space-4: 1rem;    --space-5: 1.25rem; --space-6: 1.5rem;
+  --space-8: 2rem;    --space-10: 2.5rem; --space-12: 3rem;
+
+  --radius-sm: 0.375rem; --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;  --radius-xl: 1rem; --radius-full: 9999px;
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.2);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.3);
+  --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.4);
+}
+
+[data-theme="dark"] {
+  --color-bg:             #0e0f13;
+  --color-surface:        #13141a;
+  --color-surface-2:      #181921;
+  --color-surface-offset: #1e2030;
+  --color-divider:        #252738;
+  --color-border:         #2e3248;
+  --color-text:           #e2e4f0;
+  --color-text-muted:     #7c80a0;
+  --color-text-faint:     #4a4e6a;
+  --color-text-inverse:   #0e0f13;
+  --color-primary:        #6c8cff;
+  --color-primary-hover:  #8aa0ff;
+  --color-primary-highlight: #1c2040;
+  --color-success:        #4ecca3;
+  --color-success-highlight: #0e2a22;
+  --color-warning:        #f5a623;
+  --color-warning-highlight: #2a1e0a;
+  --color-error:          #ff6b8a;
+  --color-error-highlight: #2a0e18;
+  --color-purple:         #b57bff;
+  --color-purple-highlight: #1e1040;
+  --color-cyan:           #4ecfff;
+  --color-cyan-highlight: #0a2030;
+  --color-orange:         #ff9d4e;
+  --color-gold:           #ffd166;
+  --board-light:          #2a2d3e;
+  --board-dark:           #1a1c28;
+}
+
+[data-theme="light"] {
+  --color-bg:             #f4f5fa;
+  --color-surface:        #ffffff;
+  --color-surface-2:      #f8f9fc;
+  --color-surface-offset: #eef0f8;
+  --color-divider:        #dde0f0;
+  --color-border:         #c8ccdf;
+  --color-text:           #1a1d2e;
+  --color-text-muted:     #5a5f80;
+  --color-text-faint:     #9a9eb8;
+  --color-text-inverse:   #f4f5fa;
+  --color-primary:        #3d60e8;
+  --color-primary-hover:  #2a4ad0;
+  --color-primary-highlight: #e4e8fa;
+  --color-success:        #1a9e77;
+  --color-success-highlight: #e0f5ee;
+  --color-warning:        #d48a00;
+  --color-warning-highlight: #fdf3e0;
+  --color-error:          #e02060;
+  --color-error-highlight: #fde8f0;
+  --color-purple:         #7c3ee8;
+  --color-purple-highlight: #f0e8fd;
+  --color-cyan:           #0083c4;
+  --color-cyan-highlight: #e0f3fc;
+  --color-orange:         #d66a00;
+  --color-gold:           #c4980a;
+  --board-light:          #e8eaf4;
+  --board-dark:           #c4c8de;
+}
+
+/* ─── Reset & Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+body {
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+button:disabled { cursor: not-allowed; opacity: 0.4; }
+img, svg { display: block; }
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-sm); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ─── Layout ─── */
+.app { display: grid; grid-template-rows: auto 1fr; min-height: 100dvh; }
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: var(--space-3); font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); }
+.logo-icon { width: 32px; height: 32px; }
+.header-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+.main { display: grid; grid-template-columns: 300px 1fr; gap: 0; height: calc(100dvh - 57px); overflow: hidden; }
+
+.sidebar {
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-section { padding: var(--space-4); border-bottom: 1px solid var(--color-divider); }
+.sidebar-section:last-child { border-bottom: none; flex: 1; }
+.section-title {
+  font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--color-text-muted); margin-bottom: var(--space-3);
+}
+
+.content {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ─── Controls ─── */
+.control-group { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+.control-group:last-child { margin-bottom: 0; }
+.control-label { font-size: var(--text-sm); color: var(--color-text-muted); }
+.control-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.input-field {
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  width: 100%;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.input-field:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.15); outline: none; }
+.input-field[type="number"] { width: 90px; }
+select.input-field { appearance: none; cursor: pointer; }
+
+/* range slider */
+.range-row { display: flex; align-items: center; gap: var(--space-3); }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 6px; border-radius: var(--radius-full);
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-border);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: var(--radius-full);
+  background: var(--color-primary); cursor: pointer;
+  border: 2px solid var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: var(--radius-full);
+  background: var(--color-primary); cursor: pointer; border: 2px solid var(--color-surface);
+}
+.range-value {
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  color: var(--color-primary); min-width: 28px; text-align: right; font-weight: 600;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm); font-weight: 500;
+  transition: background var(--transition), box-shadow var(--transition), transform 0.1s;
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn-primary { background: var(--color-primary); color: var(--color-text-inverse); }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-ghost { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-surface-offset); color: var(--color-text); }
+.btn-success { background: var(--color-success); color: #000; }
+.btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-warning { background: var(--color-warning); color: #000; }
+.btn-warning:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-error { background: var(--color-error); color: #fff; }
+.btn-error:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-sm { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ─── Stat cards ─── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.stat-card {
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+.stat-label { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-value { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 700; color: var(--color-text); margin-top: 2px; }
+.stat-value.accent { color: var(--color-primary); }
+.stat-value.gold { color: var(--color-gold); }
+
+/* ─── Toggle pill ─── */
+.toggle-row { display: flex; gap: var(--space-2); }
+.toggle-pill {
+  flex: 1; text-align: center;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: var(--text-xs); font-weight: 500;
+  color: var(--color-text-muted);
+  transition: all var(--transition);
+}
+.toggle-pill.active { background: var(--color-primary-highlight); color: var(--color-primary); border-color: var(--color-primary); }
+
+/* ─── Board ─── */
+.board-area {
+  padding: var(--space-6);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  overflow: auto;
+}
+.board-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--space-4);
+}
+.board-frame {
+  background: var(--color-surface);
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+}
+.board {
+  display: grid;
+  gap: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+}
+.cell {
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  aspect-ratio: 1;
+  font-size: 1.4rem;
+  transition: background var(--transition);
+  user-select: none;
+}
+.cell.light { background: var(--board-light); }
+.cell.dark  { background: var(--board-dark); }
+.cell.attacked::after {
+  content: '';
+  position: absolute; inset: 18%;
+  border-radius: var(--radius-full);
+  background: var(--color-error);
+  opacity: 0.18;
+}
+.cell.try-mark::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--color-warning);
+  opacity: 0.22;
+}
+.queen {
+  font-size: 0.7em;
+  color: var(--color-gold);
+  filter: drop-shadow(0 2px 4px oklch(0 0 0 / 0.5));
+  animation: queen-drop 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.queen.solved {
+  color: var(--color-success);
+  animation: queen-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes queen-drop {
+  0% { transform: translateY(-12px) scale(0.4); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes queen-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.board-caption {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.board-caption .hl { color: var(--color-primary); font-weight: 600; }
+.board-caption .ok { color: var(--color-success); font-weight: 600; }
+.board-caption .bad { color: var(--color-error); font-weight: 600; }
+
+/* ─── Solution navigator ─── */
+.solnav {
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+}
+.solnav-label { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text); min-width: 130px; text-align: center; }
+
+/* ─── Console ─── */
+.console {
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-success);
+  height: 150px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.console-line { padding: 2px 0; white-space: pre-wrap; }
+.console-line.info  { color: var(--color-primary); }
+.console-line.warn  { color: var(--color-warning); }
+.console-line.error { color: var(--color-error); }
+.console-line.good  { color: var(--color-success); }
+.console-line.step  { color: var(--color-text-muted); }
+
+/* ─── Theme Toggle ─── */
+.theme-toggle { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full); border: 1px solid var(--color-border); color: var(--color-text-muted); transition: all var(--transition); }
+.theme-toggle:hover { background: var(--color-surface-offset); color: var(--color-text); }
+
+/* ─── Badges ─── */
+.badge { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 500; }
+.badge-primary { background: var(--color-primary-highlight); color: var(--color-primary); }
+.badge-success { background: var(--color-success-highlight); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-highlight); color: var(--color-warning); }
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-divider); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border); }
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+  .sidebar { height: auto; border-right: none; border-bottom: 1px solid var(--color-border); overflow: visible; }
+  .content { min-height: 600px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ─── Header ─── -->
+  <header class="header">
+    <div class="logo">
+      <svg class="logo-icon" viewBox="0 0 32 32" fill="none" aria-label="QueensLab logo">
+        <rect x="3" y="3" width="6.5" height="6.5" fill="var(--color-primary)" opacity="0.4"/>
+        <rect x="16" y="3" width="6.5" height="6.5" fill="var(--color-surface-offset)"/>
+        <rect x="9.5" y="9.5" width="6.5" height="6.5" fill="var(--color-surface-offset)"/>
+        <rect x="22.5" y="9.5" width="6.5" height="6.5" fill="var(--color-primary)" opacity="0.4"/>
+        <rect x="3" y="16" width="6.5" height="6.5" fill="var(--color-surface-offset)"/>
+        <rect x="16" y="16" width="6.5" height="6.5" fill="var(--color-primary)" opacity="0.4"/>
+        <rect x="9.5" y="22.5" width="6.5" height="6.5" fill="var(--color-primary)" opacity="0.4"/>
+        <rect x="22.5" y="22.5" width="6.5" height="6.5" fill="var(--color-surface-offset)"/>
+        <path d="M16 8.5l1.6 3.2 3.4-1.1-1.6 3.4 1.6 1.5h-9l1.6-1.5-1.6-3.4 3.4 1.1z" fill="var(--color-gold)"/>
+      </svg>
+      QueensLab
+      <span class="badge badge-primary">N-Queens Solver</span>
+    </div>
+    <div class="header-actions">
+      <span id="status-badge" class="badge badge-success">READY</span>
+      <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── Main Layout ─── -->
+  <div class="main">
+    <!-- ─── Sidebar ─── -->
+    <aside class="sidebar">
+
+      <!-- Board Config -->
+      <div class="sidebar-section">
+        <div class="section-title">Board Configuration</div>
+        <div class="control-group">
+          <label class="control-label">Board Size (N × N)</label>
+          <div class="range-row">
+            <input type="range" id="board-size" min="4" max="16" value="8" step="1">
+            <span class="range-value" id="board-size-val">8</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label">Number of Queens to Place</label>
+          <div class="range-row">
+            <input type="range" id="queen-count" min="1" max="16" value="8" step="1">
+            <span class="range-value" id="queen-count-val">8</span>
+          </div>
+          <span class="control-label" id="queen-note" style="font-size:var(--text-xs);color:var(--color-text-faint)">classic: queens = board size</span>
+        </div>
+        <button class="btn btn-ghost btn-full btn-sm" onclick="rebuildBoard()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Apply &amp; Reset Board
+        </button>
+      </div>
+
+      <!-- Solver Options -->
+      <div class="sidebar-section">
+        <div class="section-title">Solver Options</div>
+        <div class="control-group">
+          <label class="control-label">Search Mode</label>
+          <div class="toggle-row" id="mode-toggle">
+            <button class="toggle-pill active" data-mode="first">First Solution</button>
+            <button class="toggle-pill" data-mode="all">All Solutions</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label">Animation Speed</label>
+          <div class="range-row">
+            <input type="range" id="speed" min="0" max="100" value="55" step="1">
+            <span class="range-value" id="speed-val" style="min-width:46px">55ms</span>
+          </div>
+          <span class="control-label" style="font-size:var(--text-xs);color:var(--color-text-faint)">0 = instant solve, no animation</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="sidebar-section">
+        <div class="section-title">Run</div>
+        <div class="control-group">
+          <button class="btn btn-primary btn-full" id="solve-btn" onclick="startSolve()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Solve
+          </button>
+        </div>
+        <div class="control-group">
+          <div style="display:flex;gap:var(--space-2);">
+            <button class="btn btn-warning btn-sm" style="flex:1" id="stop-btn" onclick="stopSolve()" disabled>Stop</button>
+            <button class="btn btn-ghost btn-sm" style="flex:1" onclick="rebuildBoard()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="sidebar-section">
+        <div class="section-title">Statistics</div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Solutions</div>
+            <div class="stat-value gold" id="stat-solutions">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Steps</div>
+            <div class="stat-value accent" id="stat-steps">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Backtracks</div>
+            <div class="stat-value" id="stat-backtracks">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Placed</div>
+            <div class="stat-value" id="stat-placed">0</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ─── Content Area ─── -->
+    <div class="content">
+      <!-- Board -->
+      <div class="board-area">
+        <div class="board-wrap">
+          <div class="board-frame">
+            <div class="board" id="board"></div>
+          </div>
+          <div class="board-caption" id="board-caption">
+            Configure the board, then press <span class="hl">Solve</span>.
+          </div>
+          <div class="solnav" id="solnav" style="display:none">
+            <button class="btn btn-ghost btn-sm" onclick="navSolution(-1)">← Prev</button>
+            <span class="solnav-label" id="solnav-label">Solution 1 / 1</span>
+            <button class="btn btn-ghost btn-sm" onclick="navSolution(1)">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Console -->
+      <div class="console" id="console-output">
+        <div class="console-line info">[QueensLab] N-Queens solver ready</div>
+        <div class="console-line">[INFO] Default: 8×8 board, 8 queens, backtracking search</div>
+        <div class="console-line step">[HINT] Adjust board size / queen count in the sidebar</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   QUEENSLAB — Customizable N-Queens Solver
+   - Adjustable board size (N) and number of queens (K ≤ N)
+   - Backtracking search with optional step animation
+   - First-solution or all-solutions modes
+   ════════════════════════════════════════════════════════════════ */
+
+/* ─── State ─── */
+let N = 8;            // board dimension
+let K = 8;            // queens to place
+let mode = 'first';   // 'first' | 'all'
+let speed = 55;       // ms per step (0 = instant)
+
+let cellEls = [];     // cellEls[row][col]
+let running = false;
+let cancelFlag = false;
+
+let stats = { solutions: 0, steps: 0, backtracks: 0, placed: 0 };
+let solutions = [];   // each solution = array of {row,col}
+let solIndex = 0;
+
+/* ─── Helpers ─── */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setStatus(text, kind) {
+  const b = document.getElementById('status-badge');
+  b.textContent = text;
+  b.className = 'badge ' + (kind || 'badge-success');
+}
+
+function refreshStats() {
+  document.getElementById('stat-solutions').textContent = stats.solutions;
+  document.getElementById('stat-steps').textContent = stats.steps;
+  document.getElementById('stat-backtracks').textContent = stats.backtracks;
+  document.getElementById('stat-placed').textContent = stats.placed;
+}
+
+function logLine(msg, cls) {
+  const c = document.getElementById('console-output');
+  const d = document.createElement('div');
+  d.className = 'console-line ' + (cls || '');
+  const ts = new Date().toLocaleTimeString('en-AU', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  d.textContent = `[${ts}] ${msg}`;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+  while (c.children.length > 200) c.removeChild(c.firstChild);
+}
+
+/* ─── Board construction ─── */
+function rebuildBoard() {
+  if (running) { cancelFlag = true; }
+  N = parseInt(document.getElementById('board-size').value);
+  K = parseInt(document.getElementById('queen-count').value);
+  // queens can't exceed board size
+  if (K > N) {
+    K = N;
+    document.getElementById('queen-count').value = N;
+    document.getElementById('queen-count-val').textContent = N;
+  }
+  mode = document.querySelector('.toggle-pill.active').dataset.mode;
+
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  board.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
+  // size each cell so the whole board fits comfortably
+  const px = Math.max(22, Math.min(56, Math.floor(560 / N)));
+  cellEls = [];
+  for (let r = 0; r < N; r++) {
+    const rowArr = [];
+    for (let c = 0; c < N; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+      cell.style.width = px + 'px';
+      cell.style.height = px + 'px';
+      board.appendChild(cell);
+      rowArr.push(cell);
+    }
+    cellEls.push(rowArr);
+  }
+
+  stats = { solutions: 0, steps: 0, backtracks: 0, placed: 0 };
+  solutions = [];
+  solIndex = 0;
+  refreshStats();
+  document.getElementById('solnav').style.display = 'none';
+  setStatus('READY', 'badge-success');
+  setCaption(`Board <span class="hl">${N}×${N}</span> · placing <span class="hl">${K}</span> ${K===1?'queen':'queens'}.`);
+  logLine(`[BOARD] Rebuilt ${N}×${N}, target ${K} queens, mode=${mode}`, 'info');
+}
+
+function setCaption(html) {
+  document.getElementById('board-caption').innerHTML = html;
+}
+
+function clearMarks() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      cellEls[r][c].classList.remove('attacked', 'try-mark');
+}
+
+function clearQueens() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      cellEls[r][c].innerHTML = '';
+}
+
+function placeQueenEl(r, c, solved) {
+  const span = document.createElement('span');
+  span.className = 'queen' + (solved ? ' solved' : '');
+  span.textContent = '♛';
+  cellEls[r][c].innerHTML = '';
+  cellEls[r][c].appendChild(span);
+}
+
+/* highlight squares attacked by queens currently on `placed` */
+function showAttacks(placed) {
+  clearMarks();
+  for (const q of placed) {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        if (r === q.row && c === q.col) continue;
+        const sameCol = c === q.col;
+        const sameDiag = Math.abs(r - q.row) === Math.abs(c - q.col);
+        const sameRow = r === q.row;
+        if (sameCol || sameDiag || sameRow) {
+          cellEls[r][c].classList.add('attacked');
+        }
+      }
+    }
+  }
+}
+
+/* ─── Conflict test ─── */
+function isSafe(placed, row, col) {
+  for (const q of placed) {
+    if (q.col === col) return false;
+    if (q.row === row) return false;
+    if (Math.abs(q.row - row) === Math.abs(q.col - col)) return false;
+  }
+  return true;
+}
+
+/* ─── Solve ─── */
+async function startSolve() {
+  if (running) return;
+  // sync config in case sliders moved without "Apply"
+  const curN = parseInt(document.getElementById('board-size').value);
+  const curK = parseInt(document.getElementById('queen-count').value);
+  if (curN !== N || curK !== Math.min(curK, curN) || cellEls.length !== curN) {
+    rebuildBoard();
+  }
+  mode = document.querySelector('.toggle-pill.active').dataset.mode;
+  speed = parseInt(document.getElementById('speed').value);
+
+  running = true;
+  cancelFlag = false;
+  stats = { solutions: 0, steps: 0, backtracks: 0, placed: 0 };
+  solutions = [];
+  refreshStats();
+  clearQueens();
+  clearMarks();
+  document.getElementById('solnav').style.display = 'none';
+  document.getElementById('solve-btn').disabled = true;
+  document.getElementById('stop-btn').disabled = false;
+  setStatus('SOLVING…', 'badge-warning');
+  logLine(`[SOLVE] start — ${N}×${N}, ${K} queens, mode=${mode}, speed=${speed}ms`, 'info');
+
+  const t0 = performance.now();
+  const placed = [];
+  await search(placed, 0);
+  const dt = (performance.now() - t0).toFixed(1);
+
+  running = false;
+  document.getElementById('solve-btn').disabled = false;
+  document.getElementById('stop-btn').disabled = true;
+
+  if (cancelFlag) {
+    setStatus('STOPPED', 'badge-warning');
+    logLine(`[SOLVE] cancelled after ${stats.steps} steps`, 'warn');
+    setCaption(`Search <span class="bad">stopped</span> by user.`);
+    return;
+  }
+
+  if (solutions.length === 0) {
+    setStatus('NO SOLUTION', 'badge-warning');
+    logLine(`[SOLVE] no valid placement found (${dt}ms, ${stats.steps} steps)`, 'error');
+    setCaption(`<span class="bad">No solution</span> — cannot place ${K} queens on a ${N}×${N} board.`);
+    clearQueens();
+  } else {
+    setStatus('SOLVED', 'badge-success');
+    logLine(`[SOLVE] done — ${solutions.length} solution(s), ${stats.steps} steps, ${stats.backtracks} backtracks, ${dt}ms`, 'good');
+    solIndex = 0;
+    showSolution(0);
+    if (mode === 'all' && solutions.length > 1) {
+      document.getElementById('solnav').style.display = 'flex';
+    }
+  }
+  stats.solutions = solutions.length;
+  refreshStats();
+}
+
+function stopSolve() {
+  if (running) { cancelFlag = true; logLine('[SOLVE] stop requested…', 'warn'); }
+}
+
+/* recursive backtracking — places one queen per recursion level on its own row */
+async function search(placed, row) {
+  if (cancelFlag) return;
+
+  // success: reached the queen quota
+  if (placed.length === K) {
+    const snapshot = placed.map(q => ({ row: q.row, col: q.col }));
+    solutions.push(snapshot);
+    logLine(`[FOUND] solution #${solutions.length}: ${snapshot.map(q=>'r'+q.row+'c'+q.col).join(' ')}`, 'good');
+    stats.solutions = solutions.length;
+    refreshStats();
+    if (speed > 0) {
+      for (const q of snapshot) placeQueenEl(q.row, q.col, true);
+      await sleep(Math.max(120, speed * 3));
+    }
+    return mode === 'first';   // signal "stop" when only the first is needed
+  }
+
+  // ran out of rows before placing all queens
+  if (row >= N) return false;
+
+  for (let col = 0; col < N; col++) {
+    if (cancelFlag) return;
+    stats.steps++;
+
+    if (speed > 0) {
+      cellEls[row][col].classList.add('try-mark');
+      refreshStats();
+      await sleep(speed);
+    }
+
+    if (isSafe(placed, row, col)) {
+      placed.push({ row, col });
+      stats.placed = placed.length;
+      if (speed > 0) {
+        placeQueenEl(row, col, false);
+        showAttacks(placed);
+        cellEls[row][col].classList.remove('try-mark');
+        await sleep(speed);
+      }
+
+      const done = await search(placed, row + 1);
+      if (done) return true;          // first-solution mode: bubble up
+
+      // backtrack
+      placed.pop();
+      stats.placed = placed.length;
+      stats.backtracks++;
+      if (speed > 0) {
+        cellEls[row][col].innerHTML = '';
+        showAttacks(placed);
+        refreshStats();
+        await sleep(speed);
+      }
+    } else if (speed > 0) {
+      cellEls[row][col].classList.remove('try-mark');
+    }
+  }
+
+  refreshStats();
+  return false;
+}
+
+/* ─── Solution display / navigation ─── */
+function showSolution(idx) {
+  clearQueens();
+  clearMarks();
+  const sol = solutions[idx];
+  if (!sol) return;
+  sol.forEach((q, i) => {
+    setTimeout(() => placeQueenEl(q.row, q.col, true), i * 40);
+  });
+  const navLabel = document.getElementById('solnav-label');
+  navLabel.textContent = `Solution ${idx + 1} / ${solutions.length}`;
+  setCaption(`Showing <span class="ok">solution ${idx + 1}</span> of ${solutions.length} · ${K} queens on ${N}×${N}.`);
+}
+
+function navSolution(dir) {
+  if (solutions.length === 0) return;
+  solIndex = (solIndex + dir + solutions.length) % solutions.length;
+  showSolution(solIndex);
+  logLine(`[VIEW] solution ${solIndex + 1}/${solutions.length}`, 'step');
+}
+
+/* ─── Slider wiring ─── */
+const sizeSlider = document.getElementById('board-size');
+const queenSlider = document.getElementById('queen-count');
+const speedSlider = document.getElementById('speed');
+
+sizeSlider.addEventListener('input', () => {
+  document.getElementById('board-size-val').textContent = sizeSlider.value;
+  // keep queen-count ceiling in sync
+  queenSlider.max = sizeSlider.value;
+  if (parseInt(queenSlider.value) > parseInt(sizeSlider.value)) {
+    queenSlider.value = sizeSlider.value;
+    document.getElementById('queen-count-val').textContent = sizeSlider.value;
+  }
+  updateQueenNote();
+});
+
+queenSlider.addEventListener('input', () => {
+  document.getElementById('queen-count-val').textContent = queenSlider.value;
+  updateQueenNote();
+});
+
+speedSlider.addEventListener('input', () => {
+  const v = parseInt(speedSlider.value);
+  document.getElementById('speed-val').textContent = v === 0 ? 'instant' : v + 'ms';
+});
+
+function updateQueenNote() {
+  const n = parseInt(sizeSlider.value);
+  const k = parseInt(queenSlider.value);
+  const note = document.getElementById('queen-note');
+  if (k === n) note.textContent = 'classic: queens = board size';
+  else if (k < n) note.textContent = `partial: ${k} of ${n} queens`;
+  else note.textContent = 'queens capped at board size';
+}
+
+/* mode toggle */
+document.getElementById('mode-toggle').addEventListener('click', e => {
+  const pill = e.target.closest('.toggle-pill');
+  if (!pill) return;
+  document.querySelectorAll('.toggle-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  mode = pill.dataset.mode;
+  logLine(`[CONFIG] search mode → ${mode === 'first' ? 'first solution' : 'all solutions'}`, 'step');
+});
+
+/* ─── Theme Toggle ─── */
+(function(){
+  const t = document.querySelector('[data-theme-toggle]');
+  const r = document.documentElement;
+  let d = 'dark';
+  if (t) t.addEventListener('click', () => {
+    d = d === 'dark' ? 'light' : 'dark';
+    r.setAttribute('data-theme', d);
+    t.innerHTML = d === 'dark'
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+  });
+})();
+
+/* ─── Bootstrap ─── */
+rebuildBoard();
+</script>
+</body>
+</html>
